@@ -1,0 +1,46 @@
+# Maven
+# Build your Java project and run tests with Apache Maven.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+
+trigger:
+- azure-pipelines1
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'pom.xml'
+    mavenOptions: '-Xmx1024m'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '17'
+    jdkArchitectureOption: 'x64'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    goals: 'package'
+
+
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(system.defaultworkingdirectory)'  # Replace with the source folder containing the JAR files
+    Contents: '**/*.jar'  # Replace with the pattern matching the JAR files
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'  # Copy the JAR files to the artifact staging directory
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'  # Publish the JAR files from the artifact staging directory
+    ArtifactName: 'SERVICEMANAGERJAR' 
+
+- script: docker build -t servicemanager --build-arg jarpath=$(Build.ArtifactStagingDirectory) .
+  displayName: 'Build Docker image'
+
+- script: docker tag servicemanager primesoft.azurecr.io/servicemanager 
+  displayName: 'Tag Docker image'
+    
+- script: docker login -u primesoft -p bxHgCtsZrWH+UI37AFNTy3fv8fdkgivTmaMsEOl1E1+ACRDvbnbz primesoft.azurecr.io
+  displayName: 'login Docker image'
+
+- script: docker push primesoft.azurecr.io/servicemanager
+  displayName: 'pushed Docker image'
