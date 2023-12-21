@@ -1,0 +1,40 @@
+trigger:
+- azure-pipelines1
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'pom.xml'
+    mavenOptions: '-Xmx1024m'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '17'
+    jdkArchitectureOption: 'x64'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    goals: 'package'
+
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(system.defaultworkingdirectory)'
+    Contents: '**/*.jar'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'SERVICEMANAGERJAR'
+
+- script: docker build -t servicemanager --build-arg jarpath=$(Build.ArtifactStagingDirectory) .
+  displayName: 'Build Docker image'
+
+- script: docker tag servicemanager primesoft.azurecr.io/servicemanager
+  displayName: 'Tag Docker image'
+    
+- script: docker login -u primesoft -p bxHgCtsZrWH+UI37AFNTy3fv8fdkgivTmaMsEOl1E1+ACRDvbnbz primesoft.azurecr.io
+  displayName: 'Login to Docker registry'
+
+- script: docker push primesoft.azurecr.io/servicemanager
+  displayName: 'Push Docker image'
