@@ -1,0 +1,59 @@
+trigger:
+- azure-pipelines1
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+- job: Build
+  displayName: 'Build Job'
+  steps:
+    - task: MavenAuthenticate@0
+      displayName: 'Maven deploy'
+      inputs:
+        artifactsFeeds: prasad
+
+    - task: Maven@3
+      inputs:
+        mavenPomFile: '/home/vsts/work/1/s/payment-gateway/pom.xml'
+        mavenOptions: '-Xmx1024m'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '17'
+        jdkArchitectureOption: 'x64'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        goals: 'package'
+
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: '$(Build.SourcesDirectory)'  # Replace with the source folder containing the JAR files
+        Contents: '**/target/*.jar'  # Replace with the pattern matching the JAR files
+        TargetFolder: '$(Pipeline.Workspace)'  # Copy the JAR files to the artifact staging directory
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifact'
+      inputs:
+        PathtoPublish: '$(Pipeline.Workspace)'
+        ArtifactName: 'PAYMENTGATEWAYJAR'
+        publishLocation: 'Container'
+
+- job: Deploy
+  displayName: 'Deploy Job'
+  dependsOn: Build
+  steps:
+    - task: DownloadBuildArtifacts@0
+      displayName: 'Download Artifact'
+      inputs:
+        artifactName: 'PAYMENTGATEWAYJAR'
+        downloadType: 'single'
+        itemPattern: '**/pgw.jar'  # Replace 'your-specific-jar-file.jar' with the actual JAR file name
+        downloadPath: '$(Pipeline.Workspace)'
+
+    - task: AzureWebApp@1
+      displayName: 'Deploy to Azure Web App'
+      inputs:
+        azureSubscription: 'Pay-As-You-Go (323d8e01-ddf5-4ccb-9178-4c65f4b8dfa7)'  # Replace with your Azure subscription name or service connection
+        appName: 'pipel'  # Replace with the name of your Azure Web App
+        package: '$(Pipeline.Workspace)/PAYMENTGATEWAYJAR'
+        
+
