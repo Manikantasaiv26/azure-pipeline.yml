@@ -1,0 +1,53 @@
+FROM openjdk:17
+COPY fns.jar /fns.jar
+COPY /config/fednowSimulator.properties  /config/fednowSimulator.properties
+EXPOSE 9091
+CMD ["java", "-jar", "fns.jar"]
+
+
+
+
+
+
+---------------
+
+
+file name docker_build_and_run.sh
+
+#!/bin/bash
+
+# Define the source and destination paths for fns.jar
+source_file="/home/psoft01/fns.jar"
+destination_dir="/home/psoft01/fns"
+
+# Check if the source file exists
+if [ -f "$source_file" ]; then
+    # Check if the destination directory exists; if not, create it
+    if [ ! -d "$destination_dir" ]; then
+        mkdir -p "$destination_dir"
+    fi
+
+    # Copy pgw.jar to the destination directory
+    cp "$source_file" "$destination_dir/"
+
+    # Check if the copy was successful
+    if [ $? -eq 0 ]; then
+        echo "Successfully copied $source_file to $destination_dir"
+    else
+        echo "Error: Failed to copy $source_file"
+        exit 1
+    fi
+else
+    echo "Error: Source file $source_file not found."
+    exit 1
+fi
+
+# Navigate to the directory containing the Dockerfile and JAR file
+cd /home/psoft01/fns
+
+# Build the Docker image with the tag "fns"
+docker build -t fns .
+
+# Run the Docker container in detached mode and map port 9090 to 9001
+docker run -d -p 9091:9002 fns
+
