@@ -1,0 +1,41 @@
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'pom.xml'
+    mavenOptions: '-Xmx1024m'
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '17'
+    jdkArchitectureOption: 'x64'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    goals: 'package'
+
+
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(system.defaultworkingdirectory)'  # Replace with the source folder containing the JAR files
+    Contents: '**/*.jar'  # Replace with the pattern matching the JAR files
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'  # Copy the JAR files to the artifact staging directory
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'  # Publish the JAR files from the artifact staging directory
+    ArtifactName: 'PAYAPTJAR' 
+
+- script: docker build -t payapt --build-arg jarpath=$(system.defaultworkingdirectory) .
+  displayName: 'Build Docker image'
+
+- script: docker tag payapt primesoft.azurecr.io/payapt
+  displayName: 'Tag Docker image'
+
+- script: docker login -u primesoft -p bxHgCtsZrWH+UI37AFNTy3fv8fdkgivTmaMsEOl1E1+ACRDvbnbz primesoft.azurecr.io
+  displayName: 'Login Docker image'
+
+- script: docker push primesoft.azurecr.io/payapt
+  displayName: 'Push Docker image'
